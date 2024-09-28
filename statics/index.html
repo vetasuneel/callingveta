@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dialer</title>
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f9;
+            overflow-x: hidden;
+            /* Prevent horizontal scrolling */
+        }
+
+        .sidebar {
+            width: 280px;
+            padding: 20px;
+            background-color: #343a40;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            color: white;
+        }
+
+        .content {
+            margin-left: 300px;
+            /* Adjusted to leave space for the sidebar */
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .sidebar h2 {
+            color: #ffdd57;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .sidebar button {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            border: none;
+        }
+
+        h1,
+        h2 {
+            color: #343a40;
+            font-weight: 600;
+        }
+
+        .form-control {
+            margin-bottom: 15px;
+        }
+
+        .table {
+            margin-top: 20px;
+        }
+
+        .transcript {
+            padding: 15px;
+            background-color: #f1f3f5;
+            border-left: 5px solid #28a745;
+        }
+
+        .role-user {
+            font-weight: 700;
+            color: #007bff;
+        }
+
+        .role-assistant {
+            font-weight: 700;
+            color: #28a745;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 10px;
+            }
+        }
+        textarea{
+            height: 100px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <h2>AI Dialer</h2>
+        <button class="btn btn-primary btn-block w-100" id="send-call-btn" onclick="showSendCall()">
+            <i class="bi bi-telephone-fill"></i> Send Call
+        </button><br>
+
+        <button class="btn btn-success btn-block w-100" id="bulk-call-btn" onclick="showBulkCall()">
+            <i class="bi bi-people-fill"></i> Bulk Calling
+        </button>
+
+        <button class="btn btn-info btn-block w-100" id="save-transfer-btn" onclick="showSaveTransfer()">
+            <i class="bi bi-save-fill"></i> Save Transfer
+        </button>
+        </button>
+    </div>
+
+    <div class="content">
+        <!-- Save Transfer Number Form -->
+        <div id="save-transfer-container" class="container" style="display:none;">
+            <h1>Save Transfer Number</h1>
+            <div class="mb-3">
+                <input type="text" class="form-control" id="transfer-name" placeholder="Enter Name" required>
+            </div>
+            <div class="mb-3">
+                <input type="text" class="form-control" id="transfer-phone"
+                    placeholder="Enter Phone Number (+1XXXXXXXXXX)" required>
+            </div>
+            <button class="btn btn-primary" id="save-transfer-number-btn" onclick="saveTransferNumber()">Save
+                Number</button>
+        </div>
+
+        <div id="saved-numbers-container" class="container" style="display:none;">
+            <h2>Saved Transfer Numbers</h2>
+            <table class="table table-striped" id="saved-numbers-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone Number</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Table rows will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Send Call Form -->
+        <div id="send-call-container" class="container">
+            <h1>Send Call</h1>
+
+            <!-- Input for Phone Number -->
+            <div class="mb-3">
+                <input type="text" class="form-control" id="phone-number"
+                    placeholder="Enter Phone Number (+1XXXXXXXXXX)" required>
+            </div>
+
+            <!-- Dropdown for selecting Twilio number for single calls -->
+            <div class="mb-3">
+                <select class="form-select" id="twilio-number" required>
+                    <!-- Changed ID from bulk-twilio-number to twilio-number -->
+                    <option value="" disabled selected>Select From Number</option>
+                    <!-- Twilio numbers will be populated here dynamically -->
+                </select>
+            </div>
+
+            <!-- Dropdown for transfer numbers -->
+            <div class="mb-3">
+                <select class="form-select" id="transfer-number" required>
+                    <option value="" disabled selected>Select Transfer Number</option>
+                    <!-- Transfer numbers will be populated here dynamically -->
+                </select>
+            </div>
+
+            <!-- Textarea for system message -->
+            <div class="mb-3">
+                <textarea class="form-control"
+                    value="Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative."
+                    id="system-message" placeholder="Enter System Message">Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative.</textarea>
+            </div>
+
+            <!-- Textarea for initial message -->
+            <div class="mb-3">
+                <textarea class="form-control"
+                    value="Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative."
+                    id="initial-message" placeholder="Enter Initial Message">Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative.</textarea>
+            </div>
+
+            <!-- Buttons to start and end the call -->
+            <button class="btn btn-primary" id="start-call-btn" onclick="startCall()">Start Call</button>
+            <button class="btn btn-danger" id="end-call-btn" onclick="endCall()" disabled>End Call</button>
+
+            <!-- Call status display -->
+            <div id="call-status" class="mt-3" style="display:none;">
+                <h2>Call Status</h2>
+                <p id="status-text">Waiting...</p>
+            </div>
+        </div>
+
+
+        <!-- Call Logs -->
+        <div id="call-logs-container" class="container mt-5" style="display:none;">
+            <h1>Call Logs</h1>
+            <div id="call-logs"></div>
+            <div id="transcript-display" class="transcript mt-3" style="display:none;">
+                <h2>Transcript for <span id="selected-call-sid"></span></h2>
+                <div id="transcript"></div>
+            </div>
+        </div>
+
+        <!-- Bulk Calling -->
+        <div id="bulk-call-container" class="container" style="display:none;">
+            <h1>Bulk Calling</h1>
+
+            <div class="mb-3">
+                <select class="form-select" id="bulk-twilio-number" required>
+                    <option value="" disabled selected>Select From Number</option>
+                    <!-- Twilio numbers will be populated here dynamically -->
+                </select>
+            </div>
+
+
+
+            <!-- Dropdown for bulk transfer numbers -->
+            <div class="mb-3">
+                <select class="form-select" id="bulk-transfer-number" required>
+                    <option value="" disabled selected>Select Transfer Number</option>
+                    <!-- Transfer numbers will be populated here dynamically -->
+                </select>
+
+            </div>
+
+            <!-- System Message -->
+            <div class="mb-3">
+                <textarea class="form-control" id="bulk-system-message" aria-valuemax="Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative." placeholder="Enter System Message">Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative.</textarea>
+            </div>
+
+            <!-- Initial Message -->
+            <div class="mb-3">
+                <textarea class="form-control" value="Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative." id="bulk-initial-message" placeholder="Enter Initial Message">Hello, this is an automated message from Amazon. Your card has been charged $2336 for the purchase of an Apple Macbook Pro with Order ID 925317 from your Amazon account. If you did not place this order and would like to speak to one of our representatives, So please let me know I will connect you to our representative.</textarea>
+            </div>
+
+            <!-- Number of Calls -->
+            <div class="mb-3">
+                <input type="number" class="form-control" id="num-calls" placeholder="Enter number of calls to send"
+                    min="1" required>
+            </div>
+
+            <!-- File Input for CSV Upload -->
+            <div class="mb-3">
+                <input type="file" class="form-control-file" id="csv-file" accept=".csv"
+                    onchange="handleCSVUpload(event)" required>
+            </div>
+
+            <!-- Preview of CSV Contacts -->
+            <div id="csv-preview" class="bulk-upload mt-3" style="display:none;">
+                <h2>
+                    Uploaded Contacts
+                    <span id="total-contacts" style="float:right;"></span> <!-- Total count display -->
+                </h2>
+                <table class="table table-striped" id="csv-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone Number</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Start Bulk Calls Button -->
+            <button class="btn btn-success mt-3" id="start-bulk-call-btn" onclick="startBulkCalls()">Start Bulk
+                Calls</button>
+        </div>
+
+
+        <!-- Bootstrap JS and dependencies -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let csvData = [];
+
+            // Fetch the currently uploaded file's content and display it, including the total count of numbers
+            async function fetchCurrentFile() {
+    const response = await fetch('/read_csv/');
+    const data = await response.json();
+
+    if (!data.error) {
+        const lines = data.contacts;
+        const tableBody = document.querySelector('#csv-table tbody');
+
+        csvData = [];
+        tableBody.innerHTML = ''; // Clear previous data
+
+        lines.forEach(contact => {
+            csvData.push(contact);  // Make sure csvData is populated
+            const row = `<tr><td>${contact.name}</td><td>${contact.phone_number}</td></tr>`;
+            tableBody.innerHTML += row;
+        });
+
+        // Update the total contacts count in the UI
+        document.getElementById('total-contacts').innerText = `Remaining Numbers: ${data.total_contacts}`;
+
+        document.getElementById('csv-preview').style.display = 'block';  // Show the CSV preview section
+    } else {
+        document.getElementById('csv-preview').style.display = 'none';  // Hide preview if no file found
+    }
+}
+
+
+
+            // Function to handle CSV file upload and preview contacts
+            function handleCSVUpload(event) {
+                const file = event.target.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Make an API call to upload the file
+                fetch('/upload_csv/', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message === 'File uploaded successfully') {
+                            console.log('CSV file uploaded');
+                            fetchCurrentFile();  // Reload the preview after uploading
+                        } else {
+                            console.error('Error uploading CSV file:', data);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+
+
+            async function startBulkCalls() {
+    const transferNumber = document.getElementById('bulk-transfer-number').value;
+    const twilioNumber = document.getElementById('bulk-twilio-number').value;  // Correct Twilio number for bulk calls
+    const systemMessage = document.getElementById('bulk-system-message').value;
+    const initialMessage = document.getElementById('bulk-initial-message').value;
+    const numCalls = Number(document.getElementById('num-calls').value);
+
+
+    // Debugging logs
+    console.log('Number of Calls:', numCalls);
+    console.log('CSV Data:', csvData);
+    console.log('Number of Contacts:', csvData.length);
+
+    // Validate the number of calls
+    if (isNaN(numCalls) || numCalls < 1 || numCalls > csvData.length) {
+    alert('Invalid number of calls');
+    return;
+}
+
+
+    const toNumbers = csvData.slice(0, numCalls).map(contact => contact.phone_number);
+
+    if (toNumbers.length === 0 || !twilioNumber) {
+        alert('No valid phone numbers found or Twilio number is missing');
+        return;
+    }
+
+    try {
+        const response = await fetch('/start_bulk_calls', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                num_calls: numCalls,  // Send number of calls
+                transfer_number: transferNumber,  // Selected transfer number
+                twilio_number: twilioNumber,  // Send the selected Twilio number
+                system_message: systemMessage || '',
+                initial_message: initialMessage || '',
+                to_numbers: toNumbers  // List of numbers to call
+            })
+        });
+
+        const data = await response.json();
+        if (data.results) {
+            data.results.forEach(result => {
+                if (result.call_sid) {
+                    console.log(`Call sent to ${result.to_number} with SID ${result.call_sid}`);
+                } else {
+                    console.error(`Failed to start the call for ${result.to_number}`);
+                }
+            });
+            alert('Bulk calls have been initiated.');
+        } else {
+            console.error('Failed to initiate bulk calls', data);
+        }
+    } catch (err) {
+        console.error('Error sending bulk calls:', err.message);
+    }
+}
+
+
+
+
+            // Show Send Call form
+            function showSendCall() {
+                document.getElementById('send-call-container').style.display = 'block';
+                document.getElementById('call-logs-container').style.display = 'none';
+                document.getElementById('bulk-call-container').style.display = 'none';
+            }
+
+            // Show Call Logs
+            function showCallLogs() {
+                document.getElementById('send-call-container').style.display = 'none';
+                document.getElementById('call-logs-container').style.display = 'block';
+                document.getElementById('bulk-call-container').style.display = 'none';
+
+                fetchCallLogs();
+            }
+
+            function showBulkCall() {
+                document.getElementById('send-call-container').style.display = 'none';
+                document.getElementById('call-logs-container').style.display = 'none';
+                document.getElementById('save-transfer-container').style.display = 'none';
+                document.getElementById('bulk-call-container').style.display = 'block';  // Ensure this is shown
+            }
+
+
+
+
+            // Fetch Call Logs and add click event to each Call SID
+            async function fetchCallLogs() {
+                try {
+                    const response = await fetch('/all_transcripts');
+                    const data = await response.json();
+                    const logsContainer = document.getElementById('call-logs');
+
+                    logsContainer.innerHTML = '';  // Clear previous logs
+
+                    data.transcripts.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = 'log-entry';
+                        div.innerHTML = `<h3>Call SID: ${log.call_sid}</h3><p>${log.transcript.length} interactions</p>`;
+                        div.addEventListener('click', () => fetchTranscript(log.call_sid));
+                        logsContainer.appendChild(div);
+                    });
+                } catch (err) {
+                    console.error('Error fetching call logs:', err.message);
+                }
+            }
+
+            // Fetch transcript for a specific Call SID
+            async function fetchTranscript(callSid) {
+                try {
+                    const response = await fetch(`/transcript/${callSid}`);
+                    const data = await response.json();
+                    const transcriptContainer = document.getElementById('transcript');
+
+                    if (data.transcript && data.transcript.length) {
+                        document.getElementById('selected-call-sid').innerText = callSid;
+                        transcriptContainer.innerHTML = '';  // Clear previous transcript
+
+                        data.transcript.forEach(entry => {
+                            const p = document.createElement('p');
+                            p.className = `role-${entry.role}`;
+                            p.innerText = `${entry.role}: ${entry.content}`;
+                            transcriptContainer.appendChild(p);
+                        });
+
+                        document.getElementById('transcript-display').style.display = 'block';
+                    } else {
+                        transcriptContainer.innerHTML = `<p>No transcript available for Call SID: ${callSid}</p>`;
+                    }
+                } catch (err) {
+                    console.error('Error fetching transcript:', err.message);
+                }
+            }
+
+            // Default view: Send Call form
+            showSendCall();
+            // Fetch the current file when the page loads
+            document.addEventListener("DOMContentLoaded", fetchCurrentFile);
+
+
+            async function startCall() {
+                const phoneNumber = document.getElementById('phone-number').value;
+                const transferNumber = document.getElementById('transfer-number').value;
+                const twilioNumber = document.getElementById('twilio-number').value;  // Get selected Twilio number
+                const systemMessage = document.getElementById('system-message').value;
+                const initialMessage = document.getElementById('initial-message').value;
+
+                // Debugging: Ensure all values are captured
+                console.log('Phone Number:', phoneNumber);
+                console.log('Transfer Number:', transferNumber);
+                console.log('Twilio Number:', twilioNumber);
+
+                if (!phoneNumber || !transferNumber || !twilioNumber) {
+                    alert('Phone number, transfer number, and Twilio number are required!');
+                    return;
+                }
+
+                // Proceed with making the API call if all values are valid
+                try {
+                    const response = await fetch('/start_call', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            to_numbers: [phoneNumber],  // Ensure this is an array
+                            transfer_number: transferNumber,
+                            twilio_number: twilioNumber,  // Send the selected Twilio number
+                            system_message: systemMessage || '',
+                            initial_message: initialMessage || ''
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    // Check if the response contains the 'results' array
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(result => {
+                            if (result.call_sid) {
+                                document.getElementById('status-text').innerText = `Call initiated with Call SID: ${result.call_sid}`;
+                            } else {
+                                console.error(`Failed to retrieve call SID for ${result.to_number}`);
+                                document.getElementById('status-text').innerText = `Failed to initiate call for ${result.to_number}`;
+                            }
+                        });
+                        document.getElementById('call-status').style.display = 'block';
+                        document.getElementById('end-call-btn').disabled = false;
+                    } else {
+                        console.error('Failed to start the call: No results');
+                        alert(`Error: ${data.error || 'Failed to initiate the call'}`);
+                    }
+                } catch (err) {
+                    console.error('Error initiating call:', err);
+                    alert('Error initiating call. Check console for details.');
+                }
+            }
+
+
+
+
+
+            // Show Save Transfer Number form
+            function showSaveTransfer() {
+                document.getElementById('save-transfer-container').style.display = 'block';
+                document.getElementById('send-call-container').style.display = 'none';
+                document.getElementById('call-logs-container').style.display = 'none';
+                document.getElementById('bulk-call-container').style.display = 'none';
+                fetchSavedNumbers();  // Fetch the saved numbers to display
+            }
+
+            async function saveTransferNumber() {
+                const name = document.getElementById('transfer-name').value;
+                const phoneNumber = document.getElementById('transfer-phone').value;
+
+                if (!name || !phoneNumber) {
+                    alert('Name and phone number are required!');
+                    return;
+                }
+
+                try {
+                    // Log the data before sending
+                    console.log("Sending data:", { name, phone_number: phoneNumber });
+
+                    const response = await fetch('/save_transfer_number', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',  // Ensure JSON content type
+                        },
+                        body: JSON.stringify({ name: name, phone_number: phoneNumber })  // Send JSON data
+                    });
+
+                    // Check if response is OK (status code 200–299)
+                    if (!response.ok) {
+                        const errorText = await response.text(); // Extract error as text
+                        console.error(`Error saving transfer number: ${errorText}`);
+                        alert(`Error: ${response.status} - ${errorText}`);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Transfer number saved successfully');
+                        fetchSavedNumbers();  // Refresh the list of saved numbers
+                    } else {
+                        alert(`Error saving transfer number: ${data.detail}`);
+                    }
+                } catch (err) {
+                    console.error('Error saving transfer number:', err.message);
+                    alert('Error saving transfer number. Check console for details.');
+                }
+            }
+
+            // Fetch saved numbers from the backend and display them in the UI table
+            async function fetchSavedNumbers() {
+                try {
+                    const response = await fetch('/get_transfer_numbers');
+                    const data = await response.json();
+
+                    const savedNumbersTable = document.querySelector('#saved-numbers-table tbody');
+                    savedNumbersTable.innerHTML = ''; // Clear previous entries
+
+                    if (data.numbers && data.numbers.length > 0) {
+                        data.numbers.forEach(number => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                    <td>${number.name}</td>
+                    <td>${number.phone_number}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTransferNumber('${number.phone_number}')">Delete</button>
+                    </td>
+                `;
+                            savedNumbersTable.appendChild(row);
+                        });
+
+                        document.getElementById('saved-numbers-container').style.display = 'block';  // Show the table
+                    } else {
+                        document.getElementById('saved-numbers-container').style.display = 'none';  // Hide the table if no numbers
+                    }
+                } catch (err) {
+                    console.error('Error fetching saved numbers:', err.message);
+                }
+            }
+
+            // Delete a transfer number by phone number
+            async function deleteTransferNumber(phoneNumber) {
+                try {
+                    const response = await fetch(`/delete_transfer_number/${phoneNumber}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Transfer number deleted successfully');
+                        fetchSavedNumbers(); // Refresh the list of saved numbers
+                    } else {
+                        alert('Error deleting transfer number');
+                    }
+                } catch (err) {
+                    console.error('Error deleting transfer number:', err.message);
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                // Fetch transfer numbers and populate the dropdowns when the page loads
+                fetchTransferNumbers();
+            });
+
+            async function fetchTransferNumbers() {
+                try {
+                    const response = await fetch('/get_transfer_numbers');
+                    const data = await response.json();
+                    const transferNumbers = data.numbers;
+
+                    // Get the dropdown elements by ID
+                    const transferNumberDropdown = document.getElementById('transfer-number');
+                    const bulkTransferNumberDropdown = document.getElementById('bulk-transfer-number');
+
+                    // Clear the dropdowns (in case they are already populated)
+                    transferNumberDropdown.innerHTML = '<option value="" disabled selected>Select Transfer Number</option>';
+                    bulkTransferNumberDropdown.innerHTML = '<option value="" disabled selected>Select Transfer Number</option>';
+
+                    // Populate the dropdowns with transfer numbers
+                    transferNumbers.forEach(number => {
+                        const option = `<option value="${number.phone_number}">${number.name} (${number.phone_number})</option>`;
+                        transferNumberDropdown.innerHTML += option;
+                        bulkTransferNumberDropdown.innerHTML += option;
+                    });
+                } catch (err) {
+                    console.error('Error fetching transfer numbers:', err.message);
+                }
+            }
+
+
+            // Function to show the appropriate container
+            function showContainer(containerId) {
+                // List of all containers that could be shown
+                const containers = ['send-call-container', 'call-logs-container', 'save-transfer-container', 'bulk-call-container', 'saved-numbers-container'];
+
+                // Loop through all containers and hide them
+                containers.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (id === containerId) {
+                        element.style.display = 'block';  // Show the selected container
+                    } else {
+                        element.style.display = 'none';   // Hide others
+                    }
+                });
+            }
+
+            // Show Send Call form
+            function showSendCall() {
+                showContainer('send-call-container');
+            }
+
+            // Show Save Transfer Number form
+            function showSaveTransfer() {
+                showContainer('save-transfer-container');
+                fetchSavedNumbers();  // Fetch the saved numbers to display
+            }
+
+            // Show Bulk Call form
+            function showBulkCall() {
+                showContainer('bulk-call-container');
+            }
+
+            // Fetch Twilio numbers and populate the dropdowns for both single and bulk calls
+            async function fetchTwilioNumbers() {
+                try {
+                    const response = await fetch('/get_twilio_numbers');  // API call to fetch Twilio numbers
+                    const data = await response.json();
+
+                    // Get the dropdown elements by their unique IDs
+                    const singleTwilioNumberDropdown = document.getElementById('twilio-number');  // For single calls
+                    const bulkTwilioNumberDropdown = document.getElementById('bulk-twilio-number');  // For bulk calls
+
+                    // Clear existing options in both dropdowns
+                    singleTwilioNumberDropdown.innerHTML = '<option value="" disabled selected>Select From Number</option>';
+                    bulkTwilioNumberDropdown.innerHTML = '<option value="" disabled selected>Select From Number</option>';
+
+                    // Populate both dropdowns with Twilio numbers
+                    data.numbers.forEach(number => {
+                        const option = `<option value="${number.phone_number}">${number.phone_number}</option>`;
+                        singleTwilioNumberDropdown.innerHTML += option;
+                        bulkTwilioNumberDropdown.innerHTML += option;
+                    });
+                } catch (err) {
+                    console.error('Error fetching Twilio numbers:', err.message);
+                }
+            }
+
+            // Fetch Twilio numbers when the page loads
+            document.addEventListener("DOMContentLoaded", fetchTwilioNumbers);
+
+
+
+
+
+
+
+
+            // Fetch transfer numbers from the backend and populate the dropdowns
+            async function fetchTransferNumbers() {
+                try {
+                    const response = await fetch('/get_transfer_numbers');
+                    const data = await response.json();
+                    const transferNumbers = data.numbers;
+
+                    // Get the dropdown elements by ID
+                    const transferNumberDropdown = document.getElementById('transfer-number');  // For single calls
+                    const bulkTransferNumberDropdown = document.getElementById('bulk-transfer-number');  // For bulk calls
+
+                    // Clear the dropdowns (in case they are already populated)
+                    transferNumberDropdown.innerHTML = '<option value="" disabled selected>Select Transfer Number</option>';
+                    bulkTransferNumberDropdown.innerHTML = '<option value="" disabled selected>Select Transfer Number</option>';
+
+                    // Populate the dropdowns with transfer numbers
+                    transferNumbers.forEach(number => {
+                        const option = `<option value="${number.phone_number}">${number.name} (${number.phone_number})</option>`;
+                        transferNumberDropdown.innerHTML += option;
+                        bulkTransferNumberDropdown.innerHTML += option;
+                    });
+                } catch (err) {
+                    console.error('Error fetching transfer numbers:', err.message);
+                }
+            }
+
+
+            document.addEventListener("DOMContentLoaded", () => {
+                fetchTransferNumbers();  // Populate transfer numbers
+                fetchTwilioNumbers();    // Populate Twilio numbers
+            });
+
+
+
+
+        </script>
+
+</body>
+
+</html>
